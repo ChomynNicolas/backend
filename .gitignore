@@ -1,0 +1,32 @@
+# Ignorar el entorno virtual
+venv/
+
+# Archivos de configuración sensibles
+*.env
+config.py
+
+# Archivos de caché y compilación
+__pycache__/
+*.pyc
+*.pyo
+
+# Librerías descargadas
+*.egg-info/
+*.egg
+
+# Configuraciones de IDEs
+.vscode/
+.idea/
+
+# Archivos relacionados con bases de datos locales
+*.db
+
+# Archivos de log
+*.log
+
+# Evitar subir migraciones si no son necesarias
+migrations/
+
+# Archivos temporales del sistema operativo
+.DS_Store
+Thumbs.db
