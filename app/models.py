@@ -25,3 +25,7 @@ class Booking(db.Model):
 
     user = db.relationship('User', backref=db.backref('bookings', lazy=True))
     room = db.relationship('Room', backref=db.backref('bookings', lazy=True))
+
+
+
+
