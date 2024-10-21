@@ -17,7 +17,7 @@ def create_user():
     existing_user = User.query.filter_by(email=data['email']).first()
     
     if existing_user:
-        return jsonify({'error': 'Email already exists'}), 400
+        return jsonify({'error': 'El email ya tiene una cuenta'}), 400
     
     password = data['password'].encode('utf-8')
     hashed_password = bcrypt.hashpw(password, bcrypt.gensalt(rounds=8)).decode('utf-8')
@@ -33,7 +33,7 @@ def login_user():
     existing_user = User.query.filter_by(email=data['email']).first()
     
     if not existing_user:
-        return jsonify({'error': 'Invalid email or password'}), 400
+        return jsonify({'error': 'El correo no está registrado'}), 400
 
     password = data['password'].encode('utf-8')
     stored_password = existing_user.password.encode('utf-8')
@@ -42,7 +42,7 @@ def login_user():
         access_token = create_access_token(identity={'email': existing_user.email}, expires_delta=datetime.timedelta(hours=6))
         return jsonify({'access_token': access_token}), 200
     else:
-        return jsonify({'error': 'Invalid email or password'}), 400
+        return jsonify({'error': 'La contraseña es incorrecta'}), 400
 
 @api.route('/api/rooms/availability', methods=['POST'])
 def check_room_availability():
@@ -125,6 +125,17 @@ def cancel_booking(booking_id):
     db.session.commit()
     
     return jsonify({'message': 'Booking canceled successfully'}), 200
+
+
+@api.route('/api/rooms', methods=['GET'])
+def get_rooms():
+    rooms = Room.query.all()  
+    return jsonify([{
+        'id': room.id,
+        'number': room.number,
+        'type': room.type,
+        'price': str(room.price)
+    } for room in rooms]), 200 
 
 
 ### RUTAS PARA ADMINISTRADORES ###
