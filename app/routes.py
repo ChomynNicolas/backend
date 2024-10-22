@@ -120,9 +120,33 @@ def create_booking():
     
     return jsonify({'message': 'Reservación creada con éxito'}),201
 
+@api.route('/api/bookings/user', methods=['GET'])  # Quitamos el parámetro user_id
+@jwt_required()  
+def get_user_bookings():
+    current_user = get_jwt_identity()  # Extraemos la identidad del token JWT
+    user = User.query.filter_by(email=current_user['email']).first()  # Buscamos al usuario por email
+
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+    
+    # Obtenemos las reservaciones del usuario autenticado
+    bookings = Booking.query.filter_by(user_id=user.id).all()
+
+    if bookings:
+        return jsonify([{
+                'id': booking.id,
+                'room_id': booking.room_id,
+                'check_in_date': booking.check_in_date.strftime('%Y-%m-%d'),
+                'check_out_date': booking.check_out_date.strftime('%Y-%m-%d'),
+                'status': booking.status
+            } for booking in bookings
+        ]), 200
+    else:
+        return jsonify({'message': 'No bookings found for this user.'}), 200
+
 @api.route('/api/bookings/user/<int:user_id>', methods=['GET'])
 @jwt_required()  
-def get_user_bookings(user_id):
+def get_user_bookingsById(user_id):
     current_user = get_jwt_identity()
     user = User.query.filter_by(id=user_id).first()
     
