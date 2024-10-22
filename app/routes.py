@@ -47,11 +47,11 @@ def login_user():
 @api.route('/api/rooms/availability', methods=['POST'])
 def check_room_availability():
     data = request.get_json()
-    check_in_date = datetime.datetime.strptime(data['check_in_date'], '%Y-%m-%d')
-    check_out_date = datetime.datetime.strptime(data['check_out_date'], '%Y-%m-%d')
+    check_in_date = datetime.datetime.fromisoformat(data['check_in_date'].replace('Z', ''))
+    check_out_date = datetime.datetime.fromisoformat(data['check_out_date'].replace('Z', ''))
 
     if check_in_date >= check_out_date:
-        return jsonify({'error': 'Invalid date range. Check-out date must be after check-in date.'}), 400
+        return jsonify({'error': 'Intervalo de fechas no válido. La fecha de salida debe ser posterior a la fecha de entrada.'}), 400
 
     room_number = data.get('room_number')
     booked_rooms = Booking.query.filter(
@@ -67,15 +67,58 @@ def check_room_availability():
             return jsonify({'error': f'Room with number {room_number} does not exist.'}), 404
         
         if room.id in booked_room_ids:
-            return jsonify({'message': f'Room {room_number} is not available for the selected dates.'}), 200
+            return jsonify({'message': f'Habitación {room_number} no está disponible en las fechas seleccionadas.', "isAvailable":False}), 200
         else:
-            return jsonify({'message': f'Room {room_number} is available for the selected dates.'}), 200
+            return jsonify({'message': f'Habitación {room_number} está disponible en las fechas seleccionadas.', "isAvailable":True}), 200
     else:
         available_rooms = Room.query.filter(~Room.id.in_(booked_room_ids)).all()
         if available_rooms:
             return jsonify([{'id': room.id, 'number': room.number, 'type': room.type, 'price': str(room.price)} for room in available_rooms]), 200
         else:
             return jsonify({'message': 'No rooms available for the selected dates.'}), 200
+
+@api.route('/api/bookings', methods=['POST'])
+@jwt_required()
+def create_booking():
+    current_user = get_jwt_identity()
+    user = User.query.filter_by(email=current_user['email']).first()
+    
+    data = request.get_json()
+    room_id = data.get('room_id')
+    check_in_date = datetime.datetime.fromisoformat(data['check_in_date'].replace('Z', ''))
+    check_out_date = datetime.datetime.fromisoformat(data['check_out_date'].replace('Z', ''))
+    
+    # Validacion de fechas
+    if check_in_date >= check_out_date:
+        return jsonify({'error': 'La fecha de salida debe ser posterior a la fecha de entrada. '}), 400
+    
+    # Verificar que la habitación existe
+    room = Room.query.get(room_id)
+    if not room:
+        return jsonify({'error': f'La habitación con id {room_id} no existe.'}),
+    404
+    
+    #Comprobar si la habitación está disponible en las fechas solicitadas
+    existings_bookings = Booking.query.filter(
+        (Booking.room_id == room_id) & (Booking.check_in_date < check_out_date) & (Booking.check_out_date > check_in_date)
+    ).all()
+    
+    if existings_bookings:
+        return jsonify({'error': f'La habitación {room.number} no está disponible para las fechas seleccionadas. '}),400
+    
+    # Crear la nueva reserva
+    new_booking = Booking(
+        user_id=user.id,
+        room_id=room_id,
+        check_in_date=check_in_date,
+        check_out_date=check_out_date,
+        status="reserved"
+    )
+    
+    db.session.add(new_booking)
+    db.session.commit()
+    
+    return jsonify({'message': 'Reservación creada con éxito'}),201
 
 @api.route('/api/bookings/user/<int:user_id>', methods=['GET'])
 @jwt_required()  
