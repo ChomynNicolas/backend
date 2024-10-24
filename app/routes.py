@@ -8,6 +8,17 @@ import datetime
 
 api = Blueprint('api', __name__)
 
+
+def room_to_dict(room):
+    return {
+        'id': room.id,
+        'number': room.number,
+        'type': room.type,
+        'price': room.price,
+        'status': room.status
+    }
+
+
 ### RUTAS PARA USUARIOS ###
 
 @api.route('/api/register', methods=['POST'])
@@ -40,9 +51,25 @@ def login_user():
     
     if bcrypt.checkpw(password, stored_password):
         access_token = create_access_token(identity={'email': existing_user.email}, expires_delta=datetime.timedelta(hours=6))
-        return jsonify({'access_token': access_token}), 200
+        return jsonify({'access_token': access_token,'role': existing_user.role}), 200
     else:
         return jsonify({'error': 'La contraseña es incorrecta'}), 400
+    
+    
+@api.route('/api/user/role', methods=['GET'])
+@jwt_required()  # Asegura que el usuario está autenticado
+def get_user_role():
+    # Obtener la identidad del token JWT (email en este caso)
+    current_user_email = get_jwt_identity()
+    
+    # Buscar al usuario por email
+    user = User.query.filter_by(email=current_user_email['email']).first()
+    
+    if not user:
+        return jsonify({'error': 'Usuario no encontrado'}), 404
+    
+    # Retornar el rol del usuario
+    return jsonify({'role': user.role}), 200
 
 @api.route('/api/rooms/availability', methods=['POST'])
 def check_room_availability():
@@ -120,16 +147,16 @@ def create_booking():
     
     return jsonify({'message': 'Reservación creada con éxito'}),201
 
-@api.route('/api/bookings/user', methods=['GET'])  # Quitamos el parámetro user_id
+@api.route('/api/bookings/user', methods=['GET'])  
 @jwt_required()  
 def get_user_bookings():
-    current_user = get_jwt_identity()  # Extraemos la identidad del token JWT
-    user = User.query.filter_by(email=current_user['email']).first()  # Buscamos al usuario por email
+    current_user = get_jwt_identity()  
+    user = User.query.filter_by(email=current_user['email']).first()
 
     if not user:
         return jsonify({'error': 'User not found'}), 404
     
-    # Obtenemos las reservaciones del usuario autenticado
+    
     bookings = Booking.query.filter_by(user_id=user.id).all()
 
     if bookings:
@@ -142,7 +169,7 @@ def get_user_bookings():
             } for booking in bookings
         ]), 200
     else:
-        return jsonify({'message': 'No bookings found for this user.'}), 200
+        return jsonify({'message': 'No se encontraron reservaciones.'}), 200
 
 @api.route('/api/bookings/user/<int:user_id>', methods=['GET'])
 @jwt_required()  
@@ -201,7 +228,8 @@ def get_rooms():
         'id': room.id,
         'number': room.number,
         'type': room.type,
-        'price': str(room.price)
+        'price': str(room.price),
+        'status': room.status
     } for room in rooms]), 200 
 
 
@@ -214,16 +242,21 @@ def get_users():
     return jsonify([{'id': user.id, 'name': user.name, 'email': user.email} for user in users])
 
 @api.route('/api/rooms', methods=['POST'])
-@jwt_required()  
 def create_room():
     data = request.get_json()
+
+    
     new_room = Room(number=data['number'], type=data['type'], price=data['price'])
+
+    
     db.session.add(new_room)
     db.session.commit()
-    return jsonify({'message': 'Room created'}), 201
+
+    
+    return jsonify(room_to_dict(new_room)), 201
+
 
 @api.route('/api/rooms/<int:room_id>/update', methods=['PUT'])
-@jwt_required()  
 def update_room(room_id):
     data = request.get_json()
     
@@ -241,12 +274,15 @@ def update_room(room_id):
         room.price = data['price']
     
     if 'status' in data:
-        if data['status'] not in ['available', 'occupied']:
+        if data['status'] not in ['available', 'unavailable']:
             return jsonify({'error': 'Invalid status value'}), 400
         room.status = data['status']
     
     db.session.commit()
-    return jsonify({'message': 'Room updated successfully'}), 200
+
+    
+    return jsonify(room_to_dict(room)), 200
+
 
 @api.route('/api/bookings', methods=['GET'])
 @jwt_required()  
