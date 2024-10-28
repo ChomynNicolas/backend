@@ -57,18 +57,18 @@ def login_user():
     
     
 @api.route('/api/user/role', methods=['GET'])
-@jwt_required()  # Asegura que el usuario está autenticado
+@jwt_required() 
 def get_user_role():
-    # Obtener la identidad del token JWT (email en este caso)
+    
     current_user_email = get_jwt_identity()
     
-    # Buscar al usuario por email
+    
     user = User.query.filter_by(email=current_user_email['email']).first()
     
     if not user:
         return jsonify({'error': 'Usuario no encontrado'}), 404
     
-    # Retornar el rol del usuario
+    
     return jsonify({'role': user.role}), 200
 
 @api.route('/api/rooms/availability', methods=['POST'])
@@ -115,17 +115,17 @@ def create_booking():
     check_in_date = datetime.datetime.fromisoformat(data['check_in_date'].replace('Z', ''))
     check_out_date = datetime.datetime.fromisoformat(data['check_out_date'].replace('Z', ''))
     
-    # Validacion de fechas
+    
     if check_in_date >= check_out_date:
         return jsonify({'error': 'La fecha de salida debe ser posterior a la fecha de entrada. '}), 400
     
-    # Verificar que la habitación existe
+    
     room = Room.query.get(room_id)
     if not room:
         return jsonify({'error': f'La habitación con id {room_id} no existe.'}),
     404
     
-    #Comprobar si la habitación está disponible en las fechas solicitadas
+    
     existings_bookings = Booking.query.filter(
         (Booking.room_id == room_id) & (Booking.check_in_date < check_out_date) & (Booking.check_out_date > check_in_date)
     ).all()
@@ -236,7 +236,6 @@ def get_rooms():
 ### RUTAS PARA ADMINISTRADORES ###
 
 @api.route('/api/users', methods=['GET'])
-@jwt_required()  
 def get_users():
     users = User.query.all()
     return jsonify([{'id': user.id, 'name': user.name, 'email': user.email} for user in users])
@@ -285,7 +284,6 @@ def update_room(room_id):
 
 
 @api.route('/api/bookings', methods=['GET'])
-@jwt_required()  
 def get_bookings():
     bookings = Booking.query.all()
     return jsonify([{
